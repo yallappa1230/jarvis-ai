@@ -353,6 +353,79 @@ private fun handlePhoneCommand(
         else -> en
     }
 
+    // Personal memory is saved only after an explicit "remember" request.
+    val brain = LocalBrainStore(context)
+    val rememberPrefixes = listOf("remember that ", "remember ", "ನೆನಪಿಡು ", "याद रखो ")
+    val rememberPrefix = rememberPrefixes.firstOrNull { q.startsWith(it) }
+    if (rememberPrefix != null) {
+        val fact = message.trim().drop(rememberPrefix.length).trim()
+        if (fact.isBlank()) return reply("Tell me what to remember.", "ಏನನ್ನು ನೆನಪಿಡಬೇಕು ಎಂದು ಹೇಳಿ.", "क्या याद रखना है, बताइए।")
+        return try {
+            brain.addMemory(fact)
+            reply("Saved to your on-device memory.", "ನಿಮ್ಮ ಫೋನ್‌ನಲ್ಲಿರುವ ವೈಯಕ್ತಿಕ ನೆನಪಿನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ.", "आपकी डिवाइस मेमोरी में सहेज लिया।")
+        } catch (_: Exception) {
+            reply("I couldn't save that memory.", "ಆ ನೆನಪನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ.", "यह जानकारी सहेजी नहीं जा सकी।")
+        }
+    }
+
+    if (listOf("my memories", "what do you remember", "ನನ್ನ ನೆನಪುಗಳು", "ನಿನಗೆ ಏನು ನೆನಪಿದೆ", "मेरी यादें", "तुम्हें क्या याद है").any { q.contains(it) }) {
+        val memories = brain.searchMemories()
+        return if (memories.isEmpty()) reply("You have no saved memories yet.", "ಇನ್ನೂ ಯಾವುದೇ ನೆನಪುಗಳನ್ನು ಉಳಿಸಿಲ್ಲ.", "अभी कोई यादें सेव नहीं हैं।")
+        else reply("Saved memories:\\n" + memories.joinToString("\\n• ", "• "),
+            "ಉಳಿಸಿದ ನೆನಪುಗಳು:\\n" + memories.joinToString("\\n• ", "• "),
+            "सहेजी गई यादें:\\n" + memories.joinToString("\\n• ", "• "))
+    }
+
+    val forgetPrefix = listOf("forget memory: ", "ನೆನಪು ಅಳಿಸು: ", "याद मिटाओ: ")
+        .firstOrNull { q.startsWith(it) }
+    if (forgetPrefix != null) {
+        val fact = message.trim().drop(forgetPrefix.length).trim()
+        return if (fact.isNotBlank() && brain.deleteMemory(fact))
+            reply("That exact memory was deleted.", "ಆ ನೆನಪನ್ನು ಅಳಿಸಲಾಗಿದೆ.", "वह याद मिटा दी गई।")
+        else reply("I couldn't find that exact memory.", "ಆ ನಿಖರವಾದ ನೆನಪು ಸಿಗಲಿಲ್ಲ.", "वह सटीक याद नहीं मिली।")
+    }
+
+    val taskPrefixes = listOf("add task ", "create task ", "remind me to ", "ಕಾರ್ಯ ಸೇರಿಸಿ ", "ಕೆಲಸ ಸೇರಿಸು ", "कार्य जोड़ो ")
+    val taskPrefix = taskPrefixes.firstOrNull { q.startsWith(it) }
+    if (taskPrefix != null) {
+        val title = message.trim().drop(taskPrefix.length).trim()
+        if (title.isBlank()) return reply("Tell me the task.", "ಕಾರ್ಯವನ್ನು ಹೇಳಿ.", "कौन सा काम जोड़ना है, बताइए।")
+        return try {
+            brain.addTask(title)
+            reply("Task saved: $title. This is a task entry, not a timed notification yet.",
+                "ಕಾರ್ಯ ಉಳಿಸಲಾಗಿದೆ: $title. ಇದು ಕಾರ್ಯಪಟ್ಟಿ ನಮೂದು; ಸಮಯದ ಅಧಿಸೂಚನೆ ಇನ್ನೂ ಸಕ್ರಿಯವಾಗಿಲ್ಲ.",
+                "काम सेव हुआ: $title। यह कार्य सूची में है, समयबद्ध सूचना अभी नहीं है।")
+        } catch (_: Exception) {
+            reply("I couldn't save that task.", "ಕಾರ್ಯವನ್ನು ಉಳಿಸಲಾಗಲಿಲ್ಲ.", "काम सेव नहीं हो सका।")
+        }
+    }
+
+    if (listOf("list tasks", "my tasks", "pending tasks", "ನನ್ನ ಕಾರ್ಯಗಳು", "ಬಾಕಿ ಕೆಲಸ", "मेरे काम", "बाकी काम").any { q.contains(it) }) {
+        val tasks = brain.pendingTasks()
+        return if (tasks.isEmpty()) reply("You have no pending tasks.", "ಬಾಕಿ ಕಾರ್ಯಗಳಿಲ್ಲ.", "कोई बाकी काम नहीं है।")
+        else reply("Pending tasks:\\n" + tasks.joinToString("\\n• ", "• "),
+            "ಬಾಕಿ ಕಾರ್ಯಗಳು:\\n" + tasks.joinToString("\\n• ", "• "),
+            "बाकी काम:\\n" + tasks.joinToString("\\n• ", "• "))
+    }
+
+    val completePrefix = listOf("complete task: ", "done task: ", "ಕಾರ್ಯ ಪೂರ್ಣ: ", "काम पूरा: ")
+        .firstOrNull { q.startsWith(it) }
+    if (completePrefix != null) {
+        val title = message.trim().drop(completePrefix.length).trim()
+        return if (title.isNotBlank() && brain.completeTask(title))
+            reply("Task marked complete.", "ಕಾರ್ಯ ಪೂರ್ಣಗೊಂಡಿದೆ ಎಂದು ಗುರುತಿಸಲಾಗಿದೆ.", "काम पूरा चिह्नित किया गया।")
+        else reply("I couldn't find that exact pending task.", "ಆ ಬಾಕಿ ಕಾರ್ಯ ಸಿಗಲಿಲ್ಲ.", "वह बाकी काम नहीं मिला।")
+    }
+
+    val deleteTaskPrefix = listOf("delete task: ", "ಕಾರ್ಯ ಅಳಿಸು: ", "काम हटाओ: ")
+        .firstOrNull { q.startsWith(it) }
+    if (deleteTaskPrefix != null) {
+        val title = message.trim().drop(deleteTaskPrefix.length).trim()
+        return if (title.isNotBlank() && brain.deleteTask(title))
+            reply("Task deleted.", "ಕಾರ್ಯ ಅಳಿಸಲಾಗಿದೆ.", "काम हटा दिया गया।")
+        else reply("I couldn't find that exact task.", "ಆ ನಿಖರವಾದ ಕಾರ್ಯ ಸಿಗಲಿಲ್ಲ.", "वह सटीक काम नहीं मिला।")
+    }
+
     // Safe, explicit app shortcuts. The app never launches arbitrary AI-supplied packages.
     val appShortcuts = listOf(
         Triple(listOf("open youtube", "ಯೂಟ್ಯೂಬ್ ತೆರೆಯಿರಿ", "यूट्यूब खोलो"), "com.google.android.youtube", "YouTube"),
