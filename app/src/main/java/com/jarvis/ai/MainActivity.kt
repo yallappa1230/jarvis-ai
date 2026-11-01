@@ -442,7 +442,7 @@ private fun handlePhoneCommand(
         val parts = expression.split("+", "-", "*", "/").map { it.trim() }
         val operator = expression.firstOrNull { it in "+-*/" }
         val a = parts.getOrNull(0)?.toDoubleOrNull(); val b = parts.getOrNull(1)?.toDoubleOrNull()
-        val result = if (a == null || b == null || operator == null) null else when (operator) { "+" -> a + b; "-" -> a - b; "*" -> a * b; "/" -> if (b == 0.0) null else a / b; else -> null }
+        val result = if (a == null || b == null || operator == null) null else when (operator) { '+' -> a + b; '-' -> a - b; '*' -> a * b; '/' -> if (b == 0.0) null else a / b; else -> null }
         return if (result == null) reply("Try a simple calculation, e.g. calculate 25 * 4.", "ಸರಳ ಲೆಕ್ಕ ಬಳಸಿ. ಉದಾ: calculate 25 * 4.", "सरल गणना लिखें, जैसे calculate 25 * 4।")
         else reply("The answer is $result.", "ಉತ್ತರ $result.", "उत्तर $result।")
     }
