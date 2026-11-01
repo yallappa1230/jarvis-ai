@@ -485,6 +485,85 @@ private fun handlePhoneCommand(
         }
     }
 
+    // Desktop-JARVIS-inspired utilities adapted for Android.
+    val notePrefixes = listOf("take note ", "note ", "save note ", "ನೋಟ್ ಬರೆಯಿರಿ ", "ಟಿಪ್ಪಣಿ ", "नोट लिखो ", "नोट ")
+    val notePrefix = notePrefixes.firstOrNull { q.startsWith(it) }
+    if (notePrefix != null) {
+        val note = message.trim().drop(notePrefix.length).trim()
+        if (note.isBlank()) return reply("Tell me what to write in the note.", "ನೋಟ್‌ನಲ್ಲಿ ಏನು ಬರೆಯಬೇಕು ಎಂದು ಹೇಳಿ.", "नोट में क्या लिखना है, बताइए।")
+        val prefs = context.getSharedPreferences("jarvis_notes", 0)
+        val notes = org.json.JSONArray(prefs.getString("items", "[]"))
+        notes.put(org.json.JSONObject().put("text", note).put("time", System.currentTimeMillis()))
+        prefs.edit().putString("items", notes.toString()).apply()
+        return reply("Note saved on this phone.", "ನೋಟ್ ಈ ಫೋನ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ.", "नोट इस फोन में सेव कर दिया गया।")
+    }
+
+    if (listOf("show notes", "my notes", "list notes", "ನನ್ನ ನೋಟ್‌ಗಳು", "ನನ್ನ ನೋಟ್ಸ್", "मेरे नोट", "नोट दिखाओ").any { q.contains(it) }) {
+        val notes = context.getSharedPreferences("jarvis_notes", 0).getString("items", "[]")
+        val array = try { org.json.JSONArray(notes) } catch (_: Exception) { org.json.JSONArray() }
+        if (array.length() == 0) return reply("You have no saved notes.", "ಉಳಿಸಿದ ನೋಟ್‌ಗಳಿಲ್ಲ.", "कोई सेव किए हुए नोट नहीं हैं।")
+        val lines = (0 until minOf(array.length(), 15)).mapNotNull { i ->
+            try { array.getJSONObject(i).optString("text").takeIf { it.isNotBlank() } } catch (_: Exception) { null }
+        }
+        return reply("Your notes:\\n" + lines.joinToString("\\n• ", "• "),
+            "ನಿಮ್ಮ ನೋಟ್‌ಗಳು:\\n" + lines.joinToString("\\n• ", "• "),
+            "आपके नोट:\\n" + lines.joinToString("\\n• ", "• "))
+    }
+
+    if (listOf("tell me a joke", "joke", "make me laugh", "ಜೋಕ್ ಹೇಳು", "ಒಂದು ಜೋಕ್", "मजाक सुनाओ", "चुटकुला").any { q.contains(it) }) {
+        val jokes = when (languageTag) {
+            "kn-IN" -> listOf("ಶಿಕ್ಷಕ: ಹೋಂವರ್ಕ್ ಎಲ್ಲಿ? ವಿದ್ಯಾರ್ಥಿ: ಸರ್, ಪುಸ್ತಕದಲ್ಲೇ ಇದೆ!", "ಕಂಪ್ಯೂಟರ್ ಏಕೆ ತಣ್ಣಗಿತ್ತು? ಅದಕ್ಕೆ Windows ತೆರೆದಿತ್ತು!")
+            "hi-IN" -> listOf("टीचर: होमवर्क कहाँ है? छात्र: किताब में ही है!", "कंप्यूटर ठंडा क्यों था? क्योंकि उसकी Windows खुली थी!")
+            else -> listOf("Why did the computer go to the doctor? It had a virus!", "Why was the maths book sad? It had too many problems!", "I told my phone a joke. It didn't laugh, but it did crack up!")
+        }
+        return jokes.random()
+    }
+
+    val wikiPrefixes = listOf("wikipedia ", "who is ", "what is ", "ವಿಕಿಪೀಡಿಯ ", "ಯಾರು ", "ಏನು ", "विकिपीडिया ", "कौन है ", "क्या है ")
+    val wikiPrefix = wikiPrefixes.firstOrNull { q.startsWith(it) }
+    if (wikiPrefix != null) {
+        val topic = message.trim().drop(wikiPrefix.length).trim()
+        if (topic.isBlank()) return reply("Tell me a topic to look up.", "ಹುಡುಕಬೇಕಾದ ವಿಷಯವನ್ನು ಹೇಳಿ.", "खोजने के लिए विषय बताइए।")
+        return try {
+            val uri = android.net.Uri.parse("https://en.wikipedia.org/wiki/Special:Search").buildUpon()
+                .appendQueryParameter("search", topic).build()
+            context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            reply("I opened Wikipedia search for $topic. The article will open in your browser.",
+                "$topic ಗಾಗಿ ವಿಕಿಪೀಡಿಯ ಹುಡುಕಾಟ ತೆರೆಯಲಾಗಿದೆ.",
+                "$topic के लिए विकिपीडिया खोज खोली गई है।")
+        } catch (_: Exception) {
+            reply("I couldn't open Wikipedia.", "ವಿಕಿಪೀಡಿಯ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ.", "विकिपीडिया नहीं खुल सका।")
+        }
+    }
+
+    val websitePrefix = listOf("open website ", "open site ", "ವೆಬ್‌ಸೈಟ್ ತೆರೆಯಿರಿ ", "वेबसाइट खोलो ")
+        .firstOrNull { q.startsWith(it) }
+    if (websitePrefix != null) {
+        val raw = message.trim().drop(websitePrefix.length).trim()
+        if (raw.isBlank()) return reply("Tell me the website name or address.", "ವೆಬ್‌ಸೈಟ್ ಹೆಸರು ಅಥವಾ ವಿಳಾಸ ಹೇಳಿ.", "वेबसाइट का नाम या पता बताइए।")
+        val host = raw.removePrefix("https://").removePrefix("http://").substringBefore("/").lowercase(Locale.ROOT)
+        if (!host.contains(".") || host.any { it.isWhitespace() }) return reply(
+            "Please say a valid website, such as wikipedia.org.", "ದಯವಿಟ್ಟು wikipedia.org ಹೀಗೆ ಸರಿಯಾದ ವೆಬ್‌ಸೈಟ್ ಹೇಳಿ.", "कृपया wikipedia.org जैसा सही वेबसाइट पता बताएं।")
+        return try {
+            val uri = android.net.Uri.parse(if (raw.startsWith("http")) raw else "https://$raw")
+            context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            reply("Opening $host.", "$host ತೆರೆಯಲಾಗುತ್ತಿದೆ.", "$host खोला जा रहा है।")
+        } catch (_: Exception) {
+            reply("I couldn't open that website.", "ಆ ವೆಬ್‌ಸೈಟ್ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ.", "वह वेबसाइट नहीं खुल सकी।")
+        }
+    }
+
+    if (listOf("play music", "open music", "ಸಂಗೀತ ಪ್ಲೇ ಮಾಡಿ", "ಹಾಡು ಪ್ಲೇ ಮಾಡಿ", "गाना चलाओ", "म्यूजिक चलाओ").any { q.contains(it) }) {
+        return try {
+            val musicIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MUSIC)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(musicIntent)
+            reply("Opening your music app. Choose a track to play.", "ನಿಮ್ಮ ಮ್ಯೂಸಿಕ್ ಆಪ್ ತೆರೆಯಲಾಗಿದೆ. ಹಾಡನ್ನು ಆಯ್ಕೆಮಾಡಿ.", "आपका म्यूजिक ऐप खुल गया है। गाना चुनें।")
+        } catch (_: Exception) {
+            reply("I couldn't find a music app on this phone.", "ಈ ಫೋನ್‌ನಲ್ಲಿ ಮ್ಯೂಸಿಕ್ ಆಪ್ ಸಿಗಲಿಲ್ಲ.", "इस फोन पर म्यूजिक ऐप नहीं मिला।")
+        }
+    }
+
     val isAlarmRequest = listOf("set alarm", "alarm", "o'clock", "oclock", "ಅಲಾರಂ", "ಎಚ್ಚರಿಕೆ", "ಗಂಟೆ", "अलार्म", "बजे")
         .any { q.contains(it) }
     if (!isAlarmRequest) return null
