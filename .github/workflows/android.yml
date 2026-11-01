@@ -22,7 +22,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3
         with:
           # The legacy SDK "tools" package has been withdrawn by Google.
           # Install only platform-tools; command-line tools are provided by this action.
