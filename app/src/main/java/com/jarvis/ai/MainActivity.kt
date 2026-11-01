@@ -96,9 +96,9 @@ fun JarvisHome(onSpeak: (String, String) -> Unit) {
                 ?.firstOrNull()
             if (!spokenWords.isNullOrBlank()) {
                 message = spokenWords
-                response = "I heard: $spokenWords"
-                status = "VOICE RECEIVED"
-                onSpeak("I heard you say: $spokenWords", selectedLanguage)
+                response = localAssistantReply(spokenWords, selectedLanguage)
+                status = "VOICE COMMAND PROCESSED"
+                onSpeak(response, selectedLanguage)
             } else {
                 status = "NO SPEECH DETECTED"
             }
