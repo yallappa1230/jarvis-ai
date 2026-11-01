@@ -246,8 +246,8 @@ fun JarvisHome(onSpeak: (String, String) -> Unit) {
                         Button(
                             onClick = {
                                 if (message.isNotBlank()) {
-                                    response = "I received your message: $message"
-                                    status = "MESSAGE RECEIVED"
+                                    response = localAssistantReply(message, selectedLanguage)
+                                    status = "JARVIS READY"
                                     onSpeak(response, selectedLanguage)
                                 } else {
                                     status = "TYPE OR SPEAK A MESSAGE"
@@ -315,5 +315,61 @@ private fun startSpeechRecognition(
         launch(intent)
     } catch (_: Exception) {
         // A compatible speech recognition service may not be installed.
+    }
+}
+
+
+private fun localAssistantReply(message: String, languageTag: String): String {
+    val q = message.trim().lowercase(Locale.ROOT)
+
+    val greeting = listOf("hello", "hi", "hey", "ನಮಸ್ಕಾರ", "ಹಾಯ್", "नमस्ते", "हेलो")
+    val thanks = listOf("thank", "ಧನ್ಯವಾದ", "धन्यवाद")
+    val identity = listOf("who are you", "your name", "ನಿನ್ನ ಹೆಸರು", "ನೀನು ಯಾರು", "तुम कौन", "तुम्हारा नाम")
+    val help = listOf("help", "ಸಹಾಯ", "मदद")
+    val time = listOf("time", "ಸಮಯ", "समय")
+    val date = listOf("date", "today", "ದಿನಾಂಕ", "ಇವತ್ತು", "आज", "तारीख")
+
+    return when {
+        greeting.any { q.contains(it) } -> when (languageTag) {
+            "kn-IN" -> "ನಮಸ್ಕಾರ! ನಾನು JARVIS. ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?"
+            "hi-IN" -> "नमस्ते! मैं JARVIS हूँ। मैं आपकी क्या मदद कर सकता हूँ?"
+            else -> "Hello! I am JARVIS. How can I help you?"
+        }
+        thanks.any { q.contains(it) } -> when (languageTag) {
+            "kn-IN" -> "ಸ್ವಾಗತ! ಇನ್ನೇನಾದರೂ ಸಹಾಯ ಬೇಕೇ?"
+            "hi-IN" -> "आपका स्वागत है! क्या मैं और मदद कर सकता हूँ?"
+            else -> "You're welcome! Is there anything else I can help with?"
+        }
+        identity.any { q.contains(it) } -> when (languageTag) {
+            "kn-IN" -> "ನಾನು JARVIS, ನಿಮ್ಮ ವೈಯಕ್ತಿಕ ಸಹಾಯಕ. ಈಗ ನಾನು ಮೂಲಭೂತ ಆಫ್‌ಲೈನ್ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಬಲ್ಲೆ."
+            "hi-IN" -> "मैं JARVIS, आपका निजी सहायक हूँ। अभी मैं कुछ बुनियादी ऑफ़लाइन सवालों के जवाब दे सकता हूँ।"
+            else -> "I am JARVIS, your personal assistant. I can currently answer a small set of basic offline questions."
+        }
+        help.any { q.contains(it) } -> when (languageTag) {
+            "kn-IN" -> "ನಮಸ್ಕಾರ, ಸಮಯ, ದಿನಾಂಕ, ನನ್ನ ಹೆಸರು ಅಥವಾ ಧನ್ಯವಾದ ಎಂದು ಕೇಳಿ ಪ್ರಯತ್ನಿಸಿ."
+            "hi-IN" -> "नमस्ते, समय, तारीख, मेरा नाम या धन्यवाद पूछकर देखें।"
+            else -> "Try asking: hello, what is your name, what time is it, today's date, or thank you."
+        }
+        time.any { q.contains(it) } -> {
+            val now = java.text.SimpleDateFormat("hh:mm a", Locale.getDefault()).format(java.util.Date())
+            when (languageTag) {
+                "kn-IN" -> "ಈಗ ಸಮಯ $now."
+                "hi-IN" -> "अभी समय $now है।"
+                else -> "The current time is $now."
+            }
+        }
+        date.any { q.contains(it) } -> {
+            val today = java.text.SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(java.util.Date())
+            when (languageTag) {
+                "kn-IN" -> "ಇಂದಿನ ದಿನಾಂಕ $today."
+                "hi-IN" -> "आज की तारीख $today है।"
+                else -> "Today's date is $today."
+            }
+        }
+        else -> when (languageTag) {
+            "kn-IN" -> "ಕ್ಷಮಿಸಿ, ಈ ಪ್ರಶ್ನೆಗೆ ಇನ್ನೂ ಉತ್ತರಿಸಲು ನನಗೆ AI ಸಂಪರ್ಕವಿಲ್ಲ. 'ಸಹಾಯ' ಎಂದು ಕೇಳಿ ಲಭ್ಯವಿರುವ ಆಫ್‌ಲೈನ್ ವೈಶಿಷ್ಟ್ಯಗಳನ್ನು ನೋಡಿ."
+            "hi-IN" -> "माफ़ कीजिए, इस सवाल का जवाब देने के लिए अभी AI कनेक्शन उपलब्ध नहीं है। उपलब्ध ऑफ़लाइन सुविधाओं के लिए 'मदद' पूछें।"
+            else -> "I don't have an AI connection for that question yet. Ask 'help' to see what I can do offline."
+        }
     }
 }
