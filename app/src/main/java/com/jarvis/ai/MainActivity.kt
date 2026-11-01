@@ -106,7 +106,8 @@ fun JarvisHome(onSpeak: (String, String) -> Unit) {
             return
         }
         history.add(ChatMessage(text.trim(), true))
-        val answer = localAssistantReply(text, selectedLanguage)
+        val answer = handlePhoneCommand(context, text, selectedLanguage)
+            ?: localAssistantReply(text, selectedLanguage)
         history.add(ChatMessage(answer, false))
         while (history.size > 100) history.removeAt(0)
         saveHistory()
@@ -334,6 +335,73 @@ private fun localAssistantReply(message: String, languageTag: String): String {
             "kn-IN" -> "ಕ್ಷಮಿಸಿ, ಈ ಪ್ರಶ್ನೆಗೆ ಇನ್ನೂ ಉತ್ತರಿಸಲು ನನಗೆ AI ಸಂಪರ್ಕವಿಲ್ಲ. 'ಸಹಾಯ' ಎಂದು ಕೇಳಿ ಲಭ್ಯವಿರುವ ಆಫ್‌ಲೈನ್ ವೈಶಿಷ್ಟ್ಯಗಳನ್ನು ನೋಡಿ."
             "hi-IN" -> "माफ़ कीजिए, इस सवाल का जवाब देने के लिए अभी AI कनेक्शन उपलब्ध नहीं है। उपलब्ध ऑफ़लाइन सुविधाओं के लिए 'मदद' पूछें।"
             else -> "I don't have an AI connection for that question yet. Ask 'help' to see what I can do offline."
+        }
+    }
+}
+
+
+private fun handlePhoneCommand(
+    context: android.content.Context,
+    message: String,
+    languageTag: String
+): String? {
+    val q = message.lowercase(Locale.ROOT)
+    val isAlarmRequest = listOf("set alarm", "alarm", "ಅಲಾರಂ", "ಎಚ್ಚರಿಕೆ", "अलार्म")
+        .any { q.contains(it) }
+    if (!isAlarmRequest) return null
+
+    val timeMatch = Regex("""(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?""", RegexOption.IGNORE_CASE)
+        .find(q) ?: return when (languageTag) {
+            "kn-IN" -> "ದಯವಿಟ್ಟು ಸಮಯವನ್ನು ಹೇಳಿ. ಉದಾಹರಣೆ: ಅಲಾರಂ 6:30 AM."
+            "hi-IN" -> "कृपया समय बताएं। उदाहरण: अलार्म 6:30 AM।"
+            else -> "Please include a time, for example: set alarm 6:30 AM."
+        }
+
+    val hourInput = timeMatch.groupValues[1].toIntOrNull() ?: return null
+    val minute = timeMatch.groupValues[2].ifBlank { "0" }.toIntOrNull() ?: 0
+    val meridiem = timeMatch.groupValues[3].lowercase(Locale.ROOT)
+
+    if (hourInput !in 1..12 || minute !in 0..59) {
+        return when (languageTag) {
+            "kn-IN" -> "ಸಮಯ ಸರಿಯಿಲ್ಲ. ದಯವಿಟ್ಟು 1 ರಿಂದ 12 ಗಂಟೆ ಮತ್ತು 0 ರಿಂದ 59 ನಿಮಿಷ ಬಳಸಿ."
+            "hi-IN" -> "समय सही नहीं है। कृपया सही घंटा और मिनट दर्ज करें।"
+            else -> "That time doesn't look valid. Please use an hour from 1–12 and minutes from 00–59."
+        }
+    }
+
+    if (meridiem.isBlank()) {
+        return when (languageTag) {
+            "kn-IN" -> "$hourInput ಗಂಟೆ ಎಂದರೆ AM ಅಥವಾ PM? ದಯವಿಟ್ಟು ಸ್ಪಷ್ಟಪಡಿಸಿ."
+            "hi-IN" -> "$hourInput बजे का मतलब AM या PM? कृपया बताएं।"
+            else -> "Do you mean $hourInput AM or $hourInput PM? Please specify."
+        }
+    }
+
+    val hour24 = when {
+        meridiem == "am" && hourInput == 12 -> 0
+        meridiem == "pm" && hourInput != 12 -> hourInput + 12
+        else -> hourInput
+    }
+
+    return try {
+        val intent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+            putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour24)
+            putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
+            putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "JARVIS alarm")
+            putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, false)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+        when (languageTag) {
+            "kn-IN" -> "ಗಡಿಯಾರ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲಾಗಿದೆ. ಅಲಾರಂ ಸಮಯವನ್ನು ಪರಿಶೀಲಿಸಿ ದೃಢೀಕರಿಸಿ."
+            "hi-IN" -> "घड़ी ऐप खुल गया है। अलार्म का समय जाँचकर पुष्टि करें।"
+            else -> "I've opened your Clock app with that alarm time. Please review and confirm it there."
+        }
+    } catch (_: Exception) {
+        when (languageTag) {
+            "kn-IN" -> "ಈ ಫೋನ್‌ನಲ್ಲಿ ಅಲಾರಂ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+            "hi-IN" -> "इस फ़ोन पर अलार्म ऐप नहीं खुल सका।"
+            else -> "I couldn't open an alarm app on this phone."
         }
     }
 }
