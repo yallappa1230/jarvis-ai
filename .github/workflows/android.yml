@@ -22,12 +22,15 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # The legacy SDK "tools" package has been withdrawn by Google.
+          # Install only platform-tools; command-line tools are provided by this action.
+          packages: 'platform-tools'
 
-      - name: Install Android SDK
+      - name: Install Android SDK platform and build tools
         run: |
-          sdkmanager "platforms;android-36"
-          sdkmanager "build-tools;36.0.0"
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
           yes | sdkmanager --licenses
 
       - name: Setup Gradle
