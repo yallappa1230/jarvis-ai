@@ -313,7 +313,7 @@ private fun localAssistantReply(message: String, languageTag: String): String {
         help.any { q.contains(it) } -> when (languageTag) {
             "kn-IN" -> "ನಮಸ್ಕಾರ, ಸಮಯ, ದಿನಾಂಕ, ನನ್ನ ಹೆಸರು ಅಥವಾ ಧನ್ಯವಾದ ಎಂದು ಕೇಳಿ ಪ್ರಯತ್ನಿಸಿ."
             "hi-IN" -> "नमस्ते, समय, तारीख, मेरा नाम या धन्यवाद पूछकर देखें।"
-            else -> "Try asking: hello, what is your name, what time is it, today's date, or thank you."
+            else -> "JARVIS tools: open camera; open WhatsApp, YouTube or Chrome; open settings; battery status; calculate 25 * 4; search web for a topic; Wikipedia topic; open website domain; play music; take note text; show notes; remember fact; my memories; add task title; list tasks; complete task: title; delete task: title; set alarm 6:30 PM; tell me a joke; time; date."
         }
         time.any { q.contains(it) } -> {
             val now = java.text.SimpleDateFormat("hh:mm a", Locale.getDefault()).format(java.util.Date())
