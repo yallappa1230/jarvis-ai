@@ -426,6 +426,26 @@ private fun handlePhoneCommand(
         else reply("I couldn't find that exact task.", "ಆ ನಿಖರವಾದ ಕಾರ್ಯ ಸಿಗಲಿಲ್ಲ.", "वह सटीक काम नहीं मिला।")
     }
 
+    // Android-native camera tool. The user controls capture; JARVIS never captures silently.
+    if (listOf("open camera", "launch camera", "ಕ್ಯಾಮೆರಾ ತೆರೆಯಿರಿ", "कैमरा खोलो").any { q.contains(it) }) {
+        val cameraIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            if (cameraIntent.resolveActivity(context.packageManager) == null) reply("No camera app is available.", "ಕ್ಯಾಮೆರಾ ಆಪ್ ಲಭ್ಯವಿಲ್ಲ.", "कैमरा ऐप उपलब्ध नहीं है।")
+            else { context.startActivity(cameraIntent); reply("Camera opened. You control when to take a photo.", "ಕ್ಯಾಮೆರಾ ತೆರೆಯಲಾಗಿದೆ. ಫೋಟೋ ತೆಗೆದುಕೊಳ್ಳುವುದನ್ನು ನೀವೇ ನಿಯಂತ್ರಿಸುತ್ತೀರಿ.", "कैमरा खुल गया। फोटो लेना आपके नियंत्रण में है।") }
+        } catch (_: Exception) { reply("I couldn't open the camera.", "ಕ್ಯಾಮೆರಾ ತೆರೆಯಲು ಆಗಲಿಲ್ಲ.", "कैमरा नहीं खुल सका।") }
+    }
+
+    // Deterministic calculator: supports a simple two-number expression only.
+    val calcPrefix = listOf("calculate ", "ಗಣನೆ ", "गणना ").firstOrNull { q.startsWith(it) }
+    if (calcPrefix != null) {
+        val expression = message.trim().drop(calcPrefix.length).replace("×", "*").replace("÷", "/").trim()
+        val parts = expression.split("+", "-", "*", "/").map { it.trim() }
+        val operator = expression.firstOrNull { it in "+-*/" }
+        val a = parts.getOrNull(0)?.toDoubleOrNull(); val b = parts.getOrNull(1)?.toDoubleOrNull()
+        val result = if (a == null || b == null || operator == null) null else when (operator) { "+" -> a + b; "-" -> a - b; "*" -> a * b; "/" -> if (b == 0.0) null else a / b; else -> null }
+        return if (result == null) reply("Try a simple calculation, e.g. calculate 25 * 4.", "ಸರಳ ಲೆಕ್ಕ ಬಳಸಿ. ಉದಾ: calculate 25 * 4.", "सरल गणना लिखें, जैसे calculate 25 * 4।")
+        else reply("The answer is $result.", "ಉತ್ತರ $result.", "उत्तर $result।")
+    }
     // Safe, explicit app shortcuts. The app never launches arbitrary AI-supplied packages.
     val appShortcuts = listOf(
         Triple(listOf("open youtube", "ಯೂಟ್ಯೂಬ್ ತೆರೆಯಿರಿ", "यूट्यूब खोलो"), "com.google.android.youtube", "YouTube"),
