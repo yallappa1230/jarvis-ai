@@ -371,9 +371,9 @@ private fun handlePhoneCommand(
     if (listOf("my memories", "what do you remember", "ನನ್ನ ನೆನಪುಗಳು", "ನಿನಗೆ ಏನು ನೆನಪಿದೆ", "मेरी यादें", "तुम्हें क्या याद है").any { q.contains(it) }) {
         val memories = brain.searchMemories()
         return if (memories.isEmpty()) reply("You have no saved memories yet.", "ಇನ್ನೂ ಯಾವುದೇ ನೆನಪುಗಳನ್ನು ಉಳಿಸಿಲ್ಲ.", "अभी कोई यादें सेव नहीं हैं।")
-        else reply("Saved memories:\\n" + memories.joinToString("\\n• ", "• "),
-            "ಉಳಿಸಿದ ನೆನಪುಗಳು:\\n" + memories.joinToString("\\n• ", "• "),
-            "सहेजी गई यादें:\\n" + memories.joinToString("\\n• ", "• "))
+        else reply("Saved memories:\n" + memories.joinToString("\n• ", "• "),
+            "ಉಳಿಸಿದ ನೆನಪುಗಳು:\n" + memories.joinToString("\n• ", "• "),
+            "सहेजी गई यादें:\n" + memories.joinToString("\n• ", "• "))
     }
 
     val forgetPrefix = listOf("forget memory: ", "ನೆನಪು ಅಳಿಸು: ", "याद मिटाओ: ")
@@ -403,9 +403,9 @@ private fun handlePhoneCommand(
     if (listOf("list tasks", "my tasks", "pending tasks", "ನನ್ನ ಕಾರ್ಯಗಳು", "ಬಾಕಿ ಕೆಲಸ", "मेरे काम", "बाकी काम").any { q.contains(it) }) {
         val tasks = brain.pendingTasks()
         return if (tasks.isEmpty()) reply("You have no pending tasks.", "ಬಾಕಿ ಕಾರ್ಯಗಳಿಲ್ಲ.", "कोई बाकी काम नहीं है।")
-        else reply("Pending tasks:\\n" + tasks.joinToString("\\n• ", "• "),
-            "ಬಾಕಿ ಕಾರ್ಯಗಳು:\\n" + tasks.joinToString("\\n• ", "• "),
-            "बाकी काम:\\n" + tasks.joinToString("\\n• ", "• "))
+        else reply("Pending tasks:\n" + tasks.joinToString("\n• ", "• "),
+            "ಬಾಕಿ ಕಾರ್ಯಗಳು:\n" + tasks.joinToString("\n• ", "• "),
+            "बाकी काम:\n" + tasks.joinToString("\n• ", "• "))
     }
 
     val completePrefix = listOf("complete task: ", "done task: ", "ಕಾರ್ಯ ಪೂರ್ಣ: ", "काम पूरा: ")
