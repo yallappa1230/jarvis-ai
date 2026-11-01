@@ -350,7 +350,7 @@ private fun handlePhoneCommand(
         .any { q.contains(it) }
     if (!isAlarmRequest) return null
 
-    val timeMatch = Regex("""(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?""", RegexOption.IGNORE_CASE)
+    val timeMatch = Regex("""(\d{1,2})(?::(\d{2}))?\s*(am|pm)?""", RegexOption.IGNORE_CASE)
         .find(q) ?: return when (languageTag) {
             "kn-IN" -> "ದಯವಿಟ್ಟು ಸಮಯವನ್ನು ಹೇಳಿ. ಉದಾಹರಣೆ: ಅಲಾರಂ 6:30 AM."
             "hi-IN" -> "कृपया समय बताएं। उदाहरण: अलार्म 6:30 AM।"
