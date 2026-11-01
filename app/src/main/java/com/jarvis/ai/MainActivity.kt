@@ -346,7 +346,7 @@ private fun handlePhoneCommand(
     languageTag: String
 ): String? {
     val q = message.lowercase(Locale.ROOT)
-    val isAlarmRequest = listOf("set alarm", "alarm", "ಅಲಾರಂ", "ಎಚ್ಚರಿಕೆ", "अलार्म")
+    val isAlarmRequest = listOf("set alarm", "alarm", "o'clock", "oclock", "ಅಲಾರಂ", "ಎಚ್ಚರಿಕೆ", "ಗಂಟೆ", "अलार्म", "बजे")
         .any { q.contains(it) }
     if (!isAlarmRequest) return null
 
@@ -363,7 +363,7 @@ private fun handlePhoneCommand(
 
     if (hourInput !in 1..12 || minute !in 0..59) {
         return when (languageTag) {
-            "kn-IN" -> "ಸಮಯ ಸರಿಯಿಲ್ಲ. ದಯವಿಟ್ಟು 1 ರಿಂದ 12 ಗಂಟೆ ಮತ್ತು 0 ರಿಂದ 59 ನಿಮಿಷ ಬಳಸಿ."
+            "kn-IN" -> "ಸಮಯ ಸರಿಯಿಲ್ಲ. ದಯವಿಟ್ಟು ಸರಿಯಾದ ಗಂಟೆ ಮತ್ತು ನಿಮಿಷ ಬಳಸಿ."
             "hi-IN" -> "समय सही नहीं है। कृपया सही घंटा और मिनट दर्ज करें।"
             else -> "That time doesn't look valid. Please use an hour from 1–12 and minutes from 00–59."
         }
@@ -373,7 +373,7 @@ private fun handlePhoneCommand(
         return when (languageTag) {
             "kn-IN" -> "$hourInput ಗಂಟೆ ಎಂದರೆ AM ಅಥವಾ PM? ದಯವಿಟ್ಟು ಸ್ಪಷ್ಟಪಡಿಸಿ."
             "hi-IN" -> "$hourInput बजे का मतलब AM या PM? कृपया बताएं।"
-            else -> "Do you mean $hourInput AM or $hourInput PM? Please specify."
+            else -> "Do you mean $hourInput AM or PM? Please specify."
         }
     }
 
@@ -382,26 +382,44 @@ private fun handlePhoneCommand(
         meridiem == "pm" && hourInput != 12 -> hourInput + 12
         else -> hourInput
     }
+    val alarmIntent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
+        putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour24)
+        putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
+        putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "JARVIS alarm")
+        putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, false)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
 
     return try {
-        val intent = Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply {
-            putExtra(android.provider.AlarmClock.EXTRA_HOUR, hour24)
-            putExtra(android.provider.AlarmClock.EXTRA_MINUTES, minute)
-            putExtra(android.provider.AlarmClock.EXTRA_MESSAGE, "JARVIS alarm")
-            putExtra(android.provider.AlarmClock.EXTRA_SKIP_UI, false)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
+        context.startActivity(alarmIntent)
         when (languageTag) {
-            "kn-IN" -> "ಗಡಿಯಾರ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲಾಗಿದೆ. ಅಲಾರಂ ಸಮಯವನ್ನು ಪರಿಶೀಲಿಸಿ ದೃಢೀಕರಿಸಿ."
-            "hi-IN" -> "घड़ी ऐप खुल गया है। अलार्म का समय जाँचकर पुष्टि करें।"
-            else -> "I've opened your Clock app with that alarm time. Please review and confirm it there."
+            "kn-IN" -> "ಅಲಾರಂ ವಿವರಗಳೊಂದಿಗೆ ಗಡಿಯಾರ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲಾಗಿದೆ. ದಯವಿಟ್ಟು ಪರಿಶೀಲಿಸಿ ದೃಢೀಕರಿಸಿ."
+            "hi-IN" -> "अलार्म विवरण के साथ घड़ी ऐप खुल गया है। कृपया जाँचकर पुष्टि करें।"
+            else -> "Clock opened with the alarm details. Please review and confirm the alarm."
         }
-    } catch (_: Exception) {
+    } catch (_: android.content.ActivityNotFoundException) {
+        try {
+            context.startActivity(
+                Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            when (languageTag) {
+                "kn-IN" -> "ಗಡಿಯಾರ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲಾಗಿದೆ. ಅಲಾರಂ ಅನ್ನು ಕೈಯಾರೆ ಸೇರಿಸಿ."
+                "hi-IN" -> "घड़ी ऐप खुल गया है। कृपया अलार्म हाथ से जोड़ें।"
+                else -> "I opened the alarms screen. Please add the alarm there manually."
+            }
+        } catch (_: Exception) {
+            when (languageTag) {
+                "kn-IN" -> "ಈ ಫೋನ್‌ನಲ್ಲಿ ಹೊಂದಾಣಿಕೆಯ ಗಡಿಯಾರ ಅಪ್ಲಿಕೇಶನ್ ಸಿಗಲಿಲ್ಲ."
+                "hi-IN" -> "इस फ़ोन पर संगत घड़ी ऐप नहीं मिला।"
+                else -> "No compatible Clock app was found on this phone."
+            }
+        }
+    } catch (_: SecurityException) {
         when (languageTag) {
-            "kn-IN" -> "ಈ ಫೋನ್‌ನಲ್ಲಿ ಅಲಾರಂ ಅಪ್ಲಿಕೇಶನ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
-            "hi-IN" -> "इस फ़ोन पर अलार्म ऐप नहीं खुल सका।"
-            else -> "I couldn't open an alarm app on this phone."
+            "kn-IN" -> "ಅಲಾರಂ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ. Android Settings ನಲ್ಲಿ ಅನುಮತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ."
+            "hi-IN" -> "अलार्म अनुमति नहीं मिली। Android Settings में अनुमति जाँचें।"
+            else -> "Android denied the alarm request. Please check the alarm permission in Settings."
         }
     }
 }
