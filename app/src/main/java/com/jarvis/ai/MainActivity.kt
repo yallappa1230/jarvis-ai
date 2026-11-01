@@ -345,7 +345,73 @@ private fun handlePhoneCommand(
     message: String,
     languageTag: String
 ): String? {
-    val q = message.lowercase(Locale.ROOT)
+    val q = message.trim().lowercase(Locale.ROOT)
+
+    fun reply(en: String, kn: String, hi: String): String = when (languageTag) {
+        "kn-IN" -> kn
+        "hi-IN" -> hi
+        else -> en
+    }
+
+    // Safe, explicit app shortcuts. The app never launches arbitrary AI-supplied packages.
+    val appShortcuts = listOf(
+        Triple(listOf("open youtube", "ಯೂಟ್ಯೂಬ್ ತೆರೆಯಿರಿ", "यूट्यूब खोलो"), "com.google.android.youtube", "YouTube"),
+        Triple(listOf("open whatsapp", "ವಾಟ್ಸಾಪ್ ತೆರೆಯಿರಿ", "व्हाट्सएप खोलो"), "com.whatsapp", "WhatsApp"),
+        Triple(listOf("open chrome", "ಕ್ರೋಮ್ ತೆರೆಯಿರಿ", "क्रोम खोलो"), "com.android.chrome", "Chrome")
+    )
+    val shortcut = appShortcuts.firstOrNull { item -> item.first.any { q.contains(it) } }
+    if (shortcut != null) {
+        val launch = context.packageManager.getLaunchIntentForPackage(shortcut.second)
+            ?: return reply(
+                "${shortcut.third} is not installed or has no launchable activity.",
+                "${shortcut.third} ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿಲ್ಲ ಅಥವಾ ತೆರೆಯಲು ಸಾಧ್ಯವಿಲ್ಲ.",
+                "${shortcut.third} इंस्टॉल नहीं है या खोला नहीं जा सकता।"
+            )
+        return try {
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(launch)
+            reply("${shortcut.third} opened.", "${shortcut.third} ತೆರೆಯಲಾಗಿದೆ.", "${shortcut.third} खोल दिया गया।")
+        } catch (_: Exception) {
+            reply("I couldn't open ${shortcut.third}.", "${shortcut.third} ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.", "${shortcut.third} नहीं खुल सका।")
+        }
+    }
+
+    if (listOf("open settings", "ಸೆಟ್ಟಿಂಗ್ಸ್ ತೆರೆಯಿರಿ", "सेटिंग्स खोलो").any { q.contains(it) }) {
+        return try {
+            context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            reply("Android Settings opened.", "Android ಸೆಟ್ಟಿಂಗ್ಸ್ ತೆರೆಯಲಾಗಿದೆ.", "Android सेटिंग्स खोल दी गई हैं।")
+        } catch (_: Exception) {
+            reply("I couldn't open Settings.", "ಸೆಟ್ಟಿಂಗ್ಸ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.", "सेटिंग्स नहीं खुल सकीं।")
+        }
+    }
+
+    if (listOf("battery", "battery status", "ಬ್ಯಾಟರಿ", "बैटरी").any { q.contains(it) }) {
+        val batteryManager = context.getSystemService(android.content.Context.BATTERY_SERVICE) as? android.os.BatteryManager
+        val level = batteryManager?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+        return if (level in 0..100) reply(
+            "Your battery is at $level percent.",
+            "ನಿಮ್ಮ ಬ್ಯಾಟರಿ $level ಪ್ರತಿಶತ ಇದೆ.",
+            "आपकी बैटरी $level प्रतिशत है।"
+        ) else reply("Battery level is unavailable.", "ಬ್ಯಾಟರಿ ಮಟ್ಟ ಲಭ್ಯವಿಲ್ಲ.", "बैटरी स्तर उपलब्ध नहीं है।")
+    }
+
+    val searchPrefixes = listOf("search web for ", "search for ", "ವೆಬ್‌ನಲ್ಲಿ ಹುಡುಕಿ ", "ಹುಡುಕಿ ", "वेब पर खोजो ")
+    val searchPrefix = searchPrefixes.firstOrNull { q.startsWith(it) }
+    if (searchPrefix != null) {
+        val query = message.trim().drop(searchPrefix.length).trim()
+        if (query.isBlank()) return reply(
+            "Tell me what to search for.", "ಏನು ಹುಡುಕಬೇಕು ಎಂದು ಹೇಳಿ.", "क्या खोजना है, बताइए।"
+        )
+        return try {
+            val uri = android.net.Uri.parse("https://www.google.com/search").buildUpon()
+                .appendQueryParameter("q", query).build()
+            context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            reply("I opened a web search for: $query", "$query ಗಾಗಿ ವೆಬ್ ಹುಡುಕಾಟ ತೆರೆಯಲಾಗಿದೆ.", "$query के लिए वेब खोज खोली गई है।")
+        } catch (_: Exception) {
+            reply("I couldn't open web search.", "ವೆಬ್ ಹುಡುಕಾಟ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.", "वेब खोज नहीं खुल सकी।")
+        }
+    }
+
     val isAlarmRequest = listOf("set alarm", "alarm", "o'clock", "oclock", "ಅಲಾರಂ", "ಎಚ್ಚರಿಕೆ", "ಗಂಟೆ", "अलार्म", "बजे")
         .any { q.contains(it) }
     if (!isAlarmRequest) return null
